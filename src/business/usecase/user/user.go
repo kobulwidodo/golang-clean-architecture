@@ -1,50 +1,82 @@
 package user
 
 import (
-	"context"
+	"errors"
 	userDom "go-clean/src/business/domain/user"
 	"go-clean/src/business/entity"
 	"go-clean/src/lib/auth"
-	"go-clean/src/lib/log"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Interface interface {
-	Create(ctx context.Context, params entity.CreateUserParams) (entity.User, error)
-	GetByUID(ctx context.Context, uid string) (entity.User, error)
+	Create(params entity.CreateUserParam) (entity.User, error)
+	Login(params entity.LoginUserParam) (string, error)
+	GetById(id uint) (entity.User, error)
 }
 
 type user struct {
-	log  log.Interface
-	auth auth.Interface
 	user userDom.Interface
+	auth auth.Interface
 }
 
-func Init(log log.Interface, auth auth.Interface, ud userDom.Interface) Interface {
-	u := &user{
-		log:  log,
+func Init(ad userDom.Interface, auth auth.Interface) Interface {
+	a := &user{
+		user: ad,
 		auth: auth,
-		user: ud,
 	}
 
-	return u
+	return a
 }
 
-func (u *user) Create(ctx context.Context, params entity.CreateUserParams) (entity.User, error) {
+func (a *user) Create(params entity.CreateUserParam) (entity.User, error) {
 	user := entity.User{
-		UID:      params.UID,
-		Name:     params.Name,
-		Email:    params.Email,
-		ImageUrl: params.ImageUrl,
+		Username: params.Username,
+		Nama:     params.Nama,
 	}
 
-	newUser, err := u.user.CreateUser(ctx, user)
+	hashPass, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.MinCost)
 	if err != nil {
 		return user, err
+	}
+
+	user.Password = string(hashPass)
+
+	newUser, err := a.user.Create(user)
+	if err != nil {
+		return newUser, err
 	}
 
 	return newUser, nil
 }
 
-func (u *user) GetByUID(ctx context.Context, uid string) (entity.User, error) {
-	return u.user.GetByUID(ctx, uid)
+func (a *user) GetById(id uint) (entity.User, error) {
+	user, err := a.user.GetById(id)
+	if err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+func (a *user) Login(params entity.LoginUserParam) (string, error) {
+	user, err := a.user.GetByUsername(params.Username)
+	if err != nil {
+		return "", err
+	}
+
+	if user.ID == 0 {
+		return "", errors.New("user tidak ditemukan atau password tidak sesuai")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(params.Password)); err != nil {
+		return "", errors.New("user tidak ditemukan atau password tidak sesuai")
+	}
+
+	token, err := a.auth.GenerateToken(user.ConvertToAuthUser())
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

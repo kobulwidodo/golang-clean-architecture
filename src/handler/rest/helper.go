@@ -4,107 +4,87 @@ import (
 	"errors"
 	"fmt"
 	"go-clean/src/business/entity"
-	"go-clean/src/lib/codes"
-	customErrors "go-clean/src/lib/errors"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 )
 
-func (r *rest) BodyLogger(ctx *gin.Context) {
-	if r.conf.LogRequest {
-		r.log.Info(fmt.Sprintf(infoRequest, ctx.Request.RequestURI, ctx.Request.Method))
+func (r *rest) httpRespSuccess(ctx *gin.Context, code int, message string, data interface{}) {
+	resp := entity.Response{
+		Meta: entity.Meta{
+			Message: message,
+			Code:    code,
+			IsError: false,
+		},
+		Data: data,
 	}
-
-	ctx.Next()
-	if r.conf.LogResponse {
-		if ctx.Writer.Status() < 300 {
-			r.log.Info(
-				fmt.Sprintf(infoResponse, ctx.Request.RequestURI, ctx.Request.Method, ctx.Writer.Status()))
-		} else {
-			r.log.Error(
-				fmt.Sprintf(infoResponse, ctx.Request.RequestURI, ctx.Request.Method, ctx.Writer.Status()))
-		}
-	}
+	ctx.JSON(code, resp)
 }
 
-func (r *rest) VerifyToken(ctx *gin.Context) {
-	token := ctx.Request.Header.Get("authorization")
-	if token == "" {
-		r.httpRespError(ctx, customErrors.NewWithCode(codes.CodeUnauthorized, "empty token"))
+func (r *rest) httpRespError(ctx *gin.Context, code int, err error) {
+	resp := entity.Response{
+		Meta: entity.Meta{
+			Message: err.Error(),
+			Code:    code,
+			IsError: true,
+		},
+		Data: nil,
+	}
+	ctx.JSON(code, resp)
+}
+
+func (r *rest) VerifyUser(ctx *gin.Context) {
+	authHeader := ctx.GetHeader("Authorization")
+	if authHeader == "" {
+		r.httpRespError(ctx, http.StatusUnauthorized, errors.New("empty token"))
 		return
 	}
 
-	var tokenID string
-	_, err := fmt.Sscanf(token, "Bearer %v", &tokenID)
+	var tokenString string
+	_, err := fmt.Sscanf(authHeader, "Bearer %v", &tokenString)
 	if err != nil {
-		r.httpRespError(ctx, customErrors.NewWithCode(codes.CodeUnauthorized, "invalid token"))
-		return
+		r.httpRespError(ctx, http.StatusUnauthorized, errors.New("invalid token"))
 	}
 
-	fbaseToken, err := r.auth.VerifyToken(ctx.Request.Context(), tokenID)
+	token, err := r.ValidateToken(tokenString)
 	if err != nil {
-		r.httpRespError(ctx, err)
+		r.httpRespError(ctx, http.StatusUnauthorized, err)
 		return
 	}
 
-	fbaseUser, err := r.auth.GetUser(ctx.Request.Context(), fbaseToken.UID)
+	claim, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		r.httpRespError(ctx, http.StatusUnauthorized, errors.New("failed to claim token"))
+		return
+	}
+
+	user := entity.User{}
+	user, err = r.uc.User.GetById(uint(claim["id"].(float64)))
 	if err != nil {
-		r.httpRespError(ctx, err)
+		r.httpRespError(ctx, http.StatusUnauthorized, errors.New("error while getting user"))
 		return
-	}
-
-	user, err := r.uc.User.GetByUID(ctx, fbaseToken.UID)
-	var ce customErrors.CustomError
-	if errors.As(err, &ce) {
-		if ce.Code == codes.CodeSQLRecordDoesNotExist {
-			params := entity.CreateUserParams{
-				Name:     fbaseUser.DisplayName,
-				UID:      fbaseUser.ID,
-				Email:    fbaseUser.Email,
-				ImageUrl: fbaseUser.PhotoURL,
-			}
-			_, err := r.uc.User.Create(ctx, params)
-			if err != nil {
-				r.httpRespError(ctx, err)
-				return
-			}
-		} else {
-			r.httpRespError(ctx, err)
-			return
-		}
 	}
 
 	c := ctx.Request.Context()
-	c = r.auth.SetUserAuthInfo(c, user.ConvertToAuthUser(), fbaseToken)
+	c = r.auth.SetUserAuthInfo(c, user.ConvertToAuthUser(), tokenString)
 	ctx.Request = ctx.Request.WithContext(c)
 
 	ctx.Next()
 }
 
-func (r *rest) httpRespSuccess(ctx *gin.Context, code codes.Message, data interface{}) {
-	resp := entity.Response{
-		Meta: entity.Meta{
-			Message: code.Message,
-			Code:    code.HttpCode,
-		},
-		Data: data,
-	}
-
-	ctx.JSON(code.HttpCode, resp)
-}
-
-func (r *rest) httpRespError(ctx *gin.Context, err error) {
-	var ce customErrors.CustomError
-	if errors.As(err, &ce) {
-		resp := entity.Response{
-			Meta: entity.Meta{
-				Message: ce.Cause,
-				Code:    ce.Code.HttpCode,
-			},
-			Data: nil,
+func (r *rest) ValidateToken(encodedToken string) (*jwt.Token, error) {
+	token, err := jwt.Parse(encodedToken, func(t *jwt.Token) (interface{}, error) {
+		_, ok := t.Method.(*jwt.SigningMethodHMAC)
+		if !ok {
+			return nil, errors.New("token invalid")
 		}
-		ctx.JSON(ce.Code.HttpCode, resp)
+		return []byte(os.Getenv("JWT_KEY")), nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	ctx.JSON(http.StatusInternalServerError, err.Error())
+
+	return token, nil
 }

@@ -4,16 +4,15 @@ import (
 	"go-clean/src/business/domain"
 	"go-clean/src/business/usecase/user"
 	"go-clean/src/lib/auth"
-	"go-clean/src/lib/log"
 )
 
 type Usecase struct {
 	User user.Interface
 }
 
-func Init(log log.Interface, auth auth.Interface, d *domain.Domains) *Usecase {
+func Init(auth auth.Interface, d *domain.Domains) *Usecase {
 	uc := &Usecase{
-		User: user.Init(log, auth, d.User),
+		User: user.Init(d.User, auth),
 	}
 
 	return uc

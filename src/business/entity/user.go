@@ -1,27 +1,35 @@
 package entity
 
-import "gorm.io/gorm"
+import (
+	"go-clean/src/lib/auth"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
 	gorm.Model
-	UID      string
-	Name     string
-	Email    string
-	ImageUrl string
+	Username string
+	Password string `json:"-"`
+	Nama     string
+	IsAdmin  bool
 }
 
-type CreateUserParams struct {
-	Name     string `json:"name"`
-	UID      string `json:"-"`
-	Email    string `json:"email"`
-	ImageUrl string `json:"imamge_url"`
+type CreateUserParam struct {
+	Username string `binding:"required"`
+	Password string `binding:"required"`
+	Nama     string `binding:"required"`
 }
 
-func (u *User) ConvertToAuthUser() AuthUser {
-	return AuthUser{
-		ID:          u.ID,
-		UID:         u.UID,
-		Email:       u.Email,
-		DisplayName: u.Name,
+type LoginUserParam struct {
+	Username string `binding:"required"`
+	Password string `binding:"required"`
+}
+
+func (u *User) ConvertToAuthUser() auth.User {
+	return auth.User{
+		ID:       u.ID,
+		Username: u.Username,
+		Password: u.Password,
+		IsAdmin:  u.IsAdmin,
 	}
 }

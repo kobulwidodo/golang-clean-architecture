@@ -1,60 +1,52 @@
 package user
 
 import (
-	"context"
-	"errors"
 	"go-clean/src/business/entity"
-	"go-clean/src/lib/auth"
-	"go-clean/src/lib/codes"
-	customError "go-clean/src/lib/errors"
-	"go-clean/src/lib/log"
 
 	"gorm.io/gorm"
 )
 
 type Interface interface {
-	CreateUser(ctx context.Context, user entity.User) (entity.User, error)
-	GetByUID(ctx context.Context, uid string) (entity.User, error)
+	Create(user entity.User) (entity.User, error)
+	GetByUsername(username string) (entity.User, error)
+	GetById(id uint) (entity.User, error)
 }
 
 type user struct {
-	log  log.Interface
-	db   *gorm.DB
-	auth auth.Interface
+	db *gorm.DB
 }
 
-func Init(log log.Interface, db *gorm.DB, auth auth.Interface) Interface {
-	u := &user{
-		log:  log,
-		db:   db,
-		auth: auth,
+func Init(db *gorm.DB) Interface {
+	a := &user{
+		db: db,
 	}
 
-	return u
+	return a
 }
 
-func (u *user) CreateUser(ctx context.Context, user entity.User) (entity.User, error) {
-	tx := u.db.Begin()
-	defer tx.Rollback()
-
-	if err := tx.Create(&user).Error; err != nil {
-		return user, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
+func (a *user) Create(user entity.User) (entity.User, error) {
+	if err := a.db.Create(&user).Error; err != nil {
 		return user, err
 	}
 
 	return user, nil
 }
 
-func (u *user) GetByUID(ctx context.Context, uid string) (entity.User, error) {
-	var user entity.User
-	res := u.db.Where("uid = ?", uid).Take(&user)
-	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		return user, customError.NewWithCode(codes.CodeSQLRecordDoesNotExist, res.Error.Error())
-	} else if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		return user, customError.NewWithCode(codes.CodeSQLRead, res.Error.Error())
+func (a *user) GetByUsername(username string) (entity.User, error) {
+	user := entity.User{}
+
+	if err := a.db.Where("username = ?", username).First(&user).Error; err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+func (a *user) GetById(id uint) (entity.User, error) {
+	user := entity.User{}
+
+	if err := a.db.Where("id = ?", id).First(&user).Error; err != nil {
+		return user, err
 	}
 
 	return user, nil

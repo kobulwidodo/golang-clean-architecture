@@ -6,8 +6,8 @@ import (
 	"go-clean/src/business/usecase"
 	"go-clean/src/lib/auth"
 	"go-clean/src/lib/configreader"
-	"go-clean/src/lib/log"
 	"go-clean/src/utils/config"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,11 +16,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	infoRequest  string = `httpclient Sent Request: uri=%v method=%v`
-	infoResponse string = `httpclient Received Response: uri=%v method=%v resp_code=%v`
 )
 
 var once = &sync.Once{}
@@ -33,12 +28,11 @@ type rest struct {
 	http         *gin.Engine
 	conf         config.GinConfig
 	configreader configreader.Interface
-	auth         auth.Interface
-	log          log.Interface
 	uc           *usecase.Usecase
+	auth         auth.Interface
 }
 
-func Init(conf config.GinConfig, confReader configreader.Interface, auth auth.Interface, log log.Interface, uc *usecase.Usecase) REST {
+func Init(conf config.GinConfig, confReader configreader.Interface, uc *usecase.Usecase, auth auth.Interface) REST {
 	r := &rest{}
 	once.Do(func() {
 		switch conf.Mode {
@@ -50,15 +44,14 @@ func Init(conf config.GinConfig, confReader configreader.Interface, auth auth.In
 			gin.SetMode("")
 		}
 
-		httpServ := gin.New()
+		httpServ := gin.Default()
 
 		r = &rest{
 			conf:         conf,
 			configreader: confReader,
-			log:          log,
-			auth:         auth,
 			http:         httpServ,
 			uc:           uc,
+			auth:         auth,
 		}
 
 		switch r.conf.CORS.Mode {
@@ -101,10 +94,10 @@ func (r *rest) Run() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			r.log.Error(fmt.Sprintf("Serving HTTP error: %s", err.Error()))
+			fmt.Println(fmt.Sprintf("Serving HTTP error: %s", err.Error()))
 		}
 	}()
-	r.log.Info(fmt.Sprintf("Listening and Serving HTTP on %s", server.Addr))
+	fmt.Println(fmt.Sprintf("Listening and Serving HTTP on %s", server.Addr))
 
 	// Wait for interrupt signal to gracefully shutdown the server with
 	// a timeout of 5 seconds.
@@ -114,7 +107,7 @@ func (r *rest) Run() {
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	r.log.Info("Shutting down server...")
+	log.Println("Shutting down server...")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
@@ -122,18 +115,25 @@ func (r *rest) Run() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		r.log.Fatal(fmt.Sprintf("Server forced to shutdown: %v", err))
+		log.Fatal(fmt.Sprintf("Server forced to shutdown: %v", err))
 	}
 
-	r.log.Info("Server exiting")
+	log.Println("Server exiting")
 }
 
 func (r *rest) Register() {
-	publicApi := r.http.Group("/public", r.BodyLogger)
+	publicApi := r.http.Group("/public")
 
 	publicApi.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"msg": "hello world",
 		})
+
+		api := r.http.Group("/api")
+		v1 := api.Group("/v1")
+
+		auth := v1.Group("/auth")
+		auth.POST("/register", r.RegisterUser)
+		auth.POST("/login", r.LoginUser)
 	})
 }

@@ -24,7 +24,7 @@ func Init(opt Options) Interface {
 	v.SetConfigFile(opt.ConfigFile)
 	v.SetConfigType("json")
 	if err := v.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("fatal error found during reading file. err: %w", err))
+		panic(fmt.Errorf("fatal error found during reading file. err : %w", err))
 	}
 
 	c := &configReader{
