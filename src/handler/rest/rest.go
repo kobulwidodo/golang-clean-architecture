@@ -123,17 +123,22 @@ func (r *rest) Run() {
 
 func (r *rest) Register() {
 	publicApi := r.http.Group("/public")
-
 	publicApi.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"msg": "hello world",
 		})
-
-		api := r.http.Group("/api")
-		v1 := api.Group("/v1")
-
-		auth := v1.Group("/auth")
-		auth.POST("/register", r.RegisterUser)
-		auth.POST("/login", r.LoginUser)
 	})
+
+	api := r.http.Group("/api")
+	v1 := api.Group("/v1")
+
+	v1.GET("/", r.VerifyUser, func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{
+			"msg": "hello mail",
+		})
+	})
+
+	auth := v1.Group("/auth")
+	auth.POST("/register", r.RegisterUser)
+	auth.POST("/login", r.LoginUser)
 }

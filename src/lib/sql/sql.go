@@ -2,6 +2,7 @@ package sql
 
 import (
 	"fmt"
+	"go-clean/src/business/entity"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -22,7 +23,7 @@ func Init(cfg Config) *gorm.DB {
 		panic(err)
 	}
 
-	if err := db.AutoMigrate(); err != nil {
+	if err := db.AutoMigrate(&entity.User{}); err != nil {
 		panic(err)
 	}
 

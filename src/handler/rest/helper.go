@@ -32,7 +32,7 @@ func (r *rest) httpRespError(ctx *gin.Context, code int, err error) {
 		},
 		Data: nil,
 	}
-	ctx.JSON(code, resp)
+	ctx.AbortWithStatusJSON(code, resp)
 }
 
 func (r *rest) VerifyUser(ctx *gin.Context) {
@@ -46,6 +46,7 @@ func (r *rest) VerifyUser(ctx *gin.Context) {
 	_, err := fmt.Sscanf(authHeader, "Bearer %v", &tokenString)
 	if err != nil {
 		r.httpRespError(ctx, http.StatusUnauthorized, errors.New("invalid token"))
+		return
 	}
 
 	token, err := r.ValidateToken(tokenString)
