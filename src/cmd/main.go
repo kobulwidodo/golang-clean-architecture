@@ -6,7 +6,7 @@ import (
 	"go-clean/src/handler/rest"
 	"go-clean/src/lib/auth"
 	"go-clean/src/lib/configreader"
-	"go-clean/src/lib/mysql"
+	"go-clean/src/lib/sql"
 	"go-clean/src/utils/config"
 )
 
@@ -23,7 +23,7 @@ func main() {
 
 	auth := auth.Init()
 
-	db := mysql.Init(cfg.SQL)
+	db := sql.Init(cfg.SQL)
 
 	d := domain.Init(db)
 
