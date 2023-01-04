@@ -1,15 +1,14 @@
 package config
 
 import (
+	"go-clean/src/lib/sql"
 	"time"
-
-	"gorm.io/driver/mysql"
 )
 
 type Application struct {
 	Meta ApplicationMeta
 	Gin  GinConfig
-	SQL  mysql.Config
+	SQL  sql.Config
 }
 
 type ApplicationMeta struct {
