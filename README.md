@@ -26,6 +26,13 @@ Run this command line to export to your environment :
 source .env
 ```
 
+Run this command to duplicate config file then you must fill `config.json` :
+
+```shell
+cd etc/cfg
+cp config.json.template config.json
+```
+
 Run this command line to create database using docker compose :
 
 ```shell
@@ -33,10 +40,16 @@ cd env
 docker-compose up -d
 ```
 
+Run this command line to install swagger :
+
+```shell
+make swag-install
+```
+
 ## How to Run the Application
 
 Start the application by running:
-  
+
 ```shell
-make run
+make run-app
 ```
