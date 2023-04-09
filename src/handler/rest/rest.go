@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"go-clean/docs/swagger"
 	"go-clean/src/business/usecase"
 	"go-clean/src/lib/auth"
 	"go-clean/src/lib/configreader"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 var once = &sync.Once{}
@@ -122,6 +125,7 @@ func (r *rest) Run() {
 }
 
 func (r *rest) Register() {
+	r.registerSwaggerRoutes()
 	publicApi := r.http.Group("/public")
 	publicApi.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -141,4 +145,14 @@ func (r *rest) Register() {
 	auth := v1.Group("/auth")
 	auth.POST("/register", r.RegisterUser)
 	auth.POST("/login", r.LoginUser)
+}
+
+func (r *rest) registerSwaggerRoutes() {
+	swagger.SwaggerInfo.Title = r.conf.Meta.Title
+	swagger.SwaggerInfo.Description = r.conf.Meta.Description
+	swagger.SwaggerInfo.Version = r.conf.Meta.Version
+	swagger.SwaggerInfo.Host = r.conf.Meta.Host
+	swagger.SwaggerInfo.BasePath = r.conf.Meta.BasePath
+
+	r.http.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 }
