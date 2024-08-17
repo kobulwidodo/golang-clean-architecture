@@ -6,7 +6,6 @@ import (
 	"go-clean/docs/swagger"
 	"go-clean/src/business/usecase"
 	"go-clean/src/lib/auth"
-	"go-clean/src/lib/configreader"
 	"go-clean/src/utils/config"
 	"log"
 	"net/http"
@@ -28,14 +27,13 @@ type REST interface {
 }
 
 type rest struct {
-	http         *gin.Engine
-	conf         config.GinConfig
-	configreader configreader.Interface
-	uc           *usecase.Usecase
-	auth         auth.Interface
+	http *gin.Engine
+	conf config.GinConfig
+	uc   *usecase.Usecase
+	auth auth.Interface
 }
 
-func Init(conf config.GinConfig, confReader configreader.Interface, uc *usecase.Usecase, auth auth.Interface) REST {
+func Init(conf config.GinConfig, uc *usecase.Usecase, auth auth.Interface) REST {
 	r := &rest{}
 	once.Do(func() {
 		switch conf.Mode {
@@ -50,11 +48,10 @@ func Init(conf config.GinConfig, confReader configreader.Interface, uc *usecase.
 		httpServ := gin.Default()
 
 		r = &rest{
-			conf:         conf,
-			configreader: confReader,
-			http:         httpServ,
-			uc:           uc,
-			auth:         auth,
+			conf: conf,
+			http: httpServ,
+			uc:   uc,
+			auth: auth,
 		}
 
 		switch r.conf.CORS.Mode {

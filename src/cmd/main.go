@@ -8,8 +8,11 @@ import (
 	"go-clean/src/lib/configreader"
 	"go-clean/src/lib/sql"
 	"go-clean/src/utils/config"
+	"log"
 
 	_ "go-clean/docs/swagger"
+
+	"github.com/spf13/cobra"
 )
 
 // @contact.name   Rakhmad Giffari Nurfadhilah
@@ -39,7 +42,20 @@ func main() {
 
 	uc := usecase.Init(auth, d)
 
-	r := rest.Init(cfg.Gin, configReader, uc, auth)
+	rootCmd := &cobra.Command{Use: "app"}
 
-	r.Run()
+	restCmd := &cobra.Command{
+		Use:   "rest",
+		Short: "Run the REST API Server",
+		Run: func(cmd *cobra.Command, args []string) {
+			r := rest.Init(cfg.Gin, uc, auth)
+			r.Run()
+		},
+	}
+
+	rootCmd.AddCommand(restCmd)
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("error executing command : %v", err)
+	}
 }

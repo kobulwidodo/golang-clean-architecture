@@ -1,7 +1,3 @@
-.PHONY: run
-run:
-	@go run ./src/cmd/main.go
-
 .PHONY: swaggo
 swaggo:
 	@/bin/rm -rf ./docs/swagger
@@ -12,7 +8,7 @@ swaggo:
 swag-install:
 	@go install github.com/swaggo/swag/cmd/swag@v1.6.7
 
-.PHONE: run-app
-run-app:
+.PHONE: run-rest-api
+run-rest-api:
 	@make swaggo
-	@make run
+	@go run ./src/cmd/main.go rest
